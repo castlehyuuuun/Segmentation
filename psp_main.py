@@ -4,43 +4,12 @@ import torch.optim as optim # Optimization algorithm 모음
 import os
 import torch.nn.functional as F # 파라미터가 필요없는 Function 모음
 import cv2
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# from psp_network import *
 from psp_function import *
 from psp_network import PSPNet
 from unet_network import UNet
 from tqdm import tqdm
-
-'''
-# cuda가 사용 가능한 지 확인
-torch.cuda.is_available()
-
-# cuda가 사용 가능하면 device에 "cuda"를 저장하고 사용 가능하지 않으면 "cpu"를 저장한다.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 멀티 GPU 사용 시 사용 가능한 GPU 셋팅 관련
-# 아래 코드의 "0,1,2"는 GPU가 3개 있고 그 번호가 0, 1, 2 인 상황의 예제입니다.
-# 만약 GPU가 5개이고 사용 가능한 것이 0, 3, 4 라면 "0,3,4" 라고 적으면 됩니다.
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
-
-# 현재 PC의 사용가능한 GPU 사용 갯수 확인
-torch.cuda.device_count()
-
-# 사용 가능한 device 갯수에 맞춰서 0번 부터 GPU 할당
-os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(list(map(str, list(range(torch.cuda.device_count())))))
-
-# 실제 사용할 GPU만 선택하려면 아래와 같이 입력하면 됩니다. (예시)
-os.environ["CUDA_VISIBLE_DEVICES"] = "1, 4, 6"
-
-# cudnn을 사용하도록 설정. GPU를 사용하고 있으면 기본값은 True 입니다.
-import torch.backends.cudnn as cudnn
-cudnn.enabled = True
-
-# inbuilt cudnn auto-tuner가 사용 중인 hardware에 가장 적합한 알고리즘을 선택하도록 허용합니다.
-https://gaussian37.github.io/dl-pytorch-snippets/ 
-위 게시글 참고할 것
-cudnn.benchmark = True
-'''
 print('Dataset loading...')
 path1 = "C:/Users/user/Downloads/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/ImageSets/Segmentation/train.txt"
 path2 = "C:/Users/user/Downloads/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/ImageSets/Segmentation/train_val.txt"
@@ -60,11 +29,6 @@ print('Dataset loading complete')
 
 total_miou = np.zeros((21, 21), dtype=int)
 model = UNet().to(device)
-# 저장된 모델 가중치 불러오기
-# model.load_state_dict(torch.load('wo_bn_relu_PSPNet_model.pt'))
-# model.load_state_dict(torch.load('pspnet_model_155001.pt'))
-# model.load_state_dict(torch.load('aux_0.005_pspnet_model_30001.pt'))
-# model.load_state_dict(torch.load('aux_0.001_pspnet_model_25000.pt'))
 optimizer = optim.Adam(model.parameters(), lr=0.0005, eps=1.0, weight_decay=0.0001)
 
 iteration = 150000
@@ -78,18 +42,8 @@ with tqdm(range(iteration + 1), dynamic_ncols=True, miniters=1) as pbar:
         new_train_gt_image = new_train_gt_image.permute(0, 3, 1, 2)
         new_train_image = new_train_image.permute(0, 3, 1, 2)
 
-        # output = model(new_train_image).to(device)
-        # # output의 크기를 new_train_gt_image와 맞추기 위해 업샘플링
-        # output = F.interpolate(output, size=(new_train_gt_image.shape[2], new_train_gt_image.shape[3]), mode='bilinear', align_corners=True)
-        # loss = F.cross_entropy(output, new_train_gt_image)
-        # loss.backward()
-        # optimizer.step()
-        # optimizer.zero_grad()
         output, aux_output = model(new_train_image)
 
-        # output의 크기를 new_train_gt_image와 맞추기 위해 업샘플링
-        # output = F.interpolate(output, size=(new_train_gt_image.shape[2], new_train_gt_image.shape[3]), mode='bilinear', align_corners=True)
-        # aux_output = F.interpolate(aux_output, size=(new_train_gt_image.shape[2], new_train_gt_image.shape[3]), mode='bilinear', align_corners=True)
         aux_output = torch.nn.functional.upsample_bilinear(aux_output, size=(new_train_gt_image.shape[2], new_train_gt_image.shape[3]))
         main_loss = F.cross_entropy(output, new_train_gt_image)
         aux_loss = F.cross_entropy(aux_output, new_train_gt_image)
@@ -186,46 +140,4 @@ with tqdm(range(iteration + 1), dynamic_ncols=True, miniters=1) as pbar:
                 mean_iou = 0
                 pixel_accuracy = 0
                 cv2.imwrite(f'{checkpoint}/testing_image_{original_image_name}.png', img)
-                #     if len(total_miou) == 1449:
-                #
-                #         iray = []
-                #         count = 21
-                #
-                #         for m in range(21):
-                #             iou = 0
-                #             union = sum(total_miou[m, :]) + sum(total_miou[:, m]) - total_miou[m, m]
-                #             intersection = total_miou[m, m]
-                #             if union == 0:
-                #                 iou = 0
-                #             elif func[:, m].any() != 0:
-                #                 iou = intersection / union
-                #
-                #             iray.append(iou)
-                #
-                #         iray = np.array(iray)
-                #         mean_iou = sum(iray) / count
-                #         print("mIoU : {}".format(mean_iou))
-                #         total_miou = np.zeros((21, 21), dtype=int)
-                #
-                #     original_image_name = val_name[idx]
-                #     cv2.imwrite(f'{checkpoint}/testing_image_{original_image_name}.png', img)
-                #     # print("name : {} mIoU : {}".format(original_image_name, total_miou))
-                #
-                #     # with open('C:/Users/user/Desktop/semantic segmentation/testing image/psp50000_mIoU.txt',"a+") as tmp:
-                #     #     tmp.write(f' i : {i}, name : {original_image_name}, loss : {loss.item()}, mIoU : {func}\n')
-                #     if mean_iou is not None:
-                #         if i <= 50000:
-                #             filename = 'psp50000_mIoU.txt'
-                #         elif i <= 100000:
-                #             filename = 'psp100000_mIoU.txt'
-                #         elif i <= 150000:
-                #             filename = 'psp150000_mIoU.txt'
-                #         else:
-                #             filename = 'psp200000_mIoU.txt'
-                #
-                #         filepath = os.path.join('C:/Users/user/Desktop/semantic segmentation/testing image/PSPNet', filename)
-                #         with open(filepath, "a+") as tmp:
-                #             tmp.write(f' i : {i}, name, mIoU : {mean_iou}\n')
-                #             # tmp.write(f' i : {i}, name : {original_image_name}, loss : {total_loss.item()}, mIoU : {mean_iou}\n')
-                #
-                # print("mIoU : {}".format(mean_iou))
+            
