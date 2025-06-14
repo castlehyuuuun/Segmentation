@@ -256,8 +256,3 @@ def seg_to_rgb(output, nc=21):
             rgb_output[h, w, :] = label_colors[hc]
 
     return rgb_output
-
-# using_val_gt_image = np.load("256_val_gt_image .npy")
-# img = seg_to_rgb(using_val_gt_image[0])
-# cv2.imshow("img", img)
-# cv2.waitKey(-1)
