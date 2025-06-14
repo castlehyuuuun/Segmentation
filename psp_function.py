@@ -143,23 +143,5 @@ def mIoU(pred, gt):
 
             category[i, w] += 1
 
-    # iray = []
-    # count = 0
-    #
-    # for m in range(21):
-    #     iou = 0
-    #     union = sum(category[m, :]) + sum(category[:, m]) - category[m, m]
-    #     intersection = category[m, m]
-    #     if union == 0:
-    #         iou = 0
-    #     elif category[:, m].any() != 0:
-    #         count += 1
-    #         iou = intersection / union
-    #
-    #     iray.append(iou)
-    #
-    # iray = np.array(iray)
-    # mean_iou = sum(iray) / count
-
     return category
 
